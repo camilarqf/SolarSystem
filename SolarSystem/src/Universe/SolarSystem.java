@@ -405,8 +405,6 @@ public class SolarSystem implements GLEventListener, KeyListener, MouseListener,
 		
 		// Flush the pipeline, and swap the buffers
 		
-
-		
 		
 
 	}
