@@ -13,6 +13,9 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Random;
 
 import javax.imageio.ImageIO;
 import javax.swing.JFrame;
@@ -31,6 +34,7 @@ import com.jogamp.opengl.util.FPSAnimator;
 import com.jogamp.opengl.util.gl2.GLUT;
 import com.jogamp.opengl.util.texture.Texture;
 import com.jogamp.opengl.util.texture.TextureData;
+import com.jogamp.opengl.util.texture.TextureData.Flusher;
 import com.jogamp.opengl.util.texture.TextureIO;
 
 public class SolarSystem implements GLEventListener, KeyListener, MouseListener, MouseMotionListener {
@@ -40,12 +44,20 @@ public class SolarSystem implements GLEventListener, KeyListener, MouseListener,
 	private GLU glu;
 	private GLUT glut;
 	private GLAutoDrawable glDrawable;
-	private Texture tex, texSun, textMerc;
+	private Texture tex, texSun, textMerc, texVen, texEarth, texMars, texJup, texSat, texUran, texNep;
 	private BufferedImage imagem;
 	private int width, height;
 	private TextureData td;
 	private ByteBuffer buffer;
 	private int idTexture[];
+	boolean b = true;
+	float orbiting_speed[] = { 4f, 2f, 1.4f, 1.1f, 0.9f, 0.75f, 0.63f, 0.54f };
+	float angles[] = new float[9];
+	float[] ambient = { 0.0f, 0.0f, 0.0f, 1.0f };
+	float[] diffuse = { 1.0f, 1.0f, 1.0f, 1.0f };
+	float[] specular = { 1.0f, 1.0f, 1.0f, 1.0f };
+	float[] position = { -1f, 1.0f, 0f, 0.0f };
+	List<Float> list = new ArrayList<Float>();
 
 	public static void main(String[] args) {
 		GLProfile glp = GLProfile.get(GLProfile.GL2);
@@ -103,6 +115,12 @@ public class SolarSystem implements GLEventListener, KeyListener, MouseListener,
 		case KeyEvent.VK_E:
 			rotY += 1f;
 			break;
+		case KeyEvent.VK_P:
+			if (b == true) {
+				b = false;
+			} else {
+				b = true;
+			}
 
 		}
 
@@ -126,8 +144,18 @@ public class SolarSystem implements GLEventListener, KeyListener, MouseListener,
 		gl.glLoadIdentity();
 
 		setCamera();
-		sun();
+		lightning();
+		/*sun();
+		angle_update();
 		mercury();
+		venus();
+		earth();
+		mars();
+		jupyter();
+		saturn();
+		uranus();
+		neptune();*/
+		stars(100);
 
 	}
 
@@ -146,7 +174,6 @@ public class SolarSystem implements GLEventListener, KeyListener, MouseListener,
 
 		// Habilita o modelo de colorização de Gouraud
 		gl.glShadeModel(GL2.GL_SMOOTH);
-
 		gl.glEnable(GL2.GL_AUTO_NORMAL);
 		gl.glEnable(GL2.GL_NORMALIZE);
 
@@ -156,20 +183,21 @@ public class SolarSystem implements GLEventListener, KeyListener, MouseListener,
 		obsY = 10;
 		rotX = 0;
 		rotY = 0;
-		obsZ = 4000;
-		// habilita a reflexão no material
-		gl.glEnable(GL2.GL_COLOR_MATERIAL);
-		gl.glColorMaterial(GL2.GL_FRONT, GL2.GL_DIFFUSE);
-		// Habilita o uso de iluminação
-		gl.glEnable(GL2.GL_LIGHTING);
-		// Habilita a luz de número 0
-		gl.glEnable(GL2.GL_LIGHT0);
+		obsZ = 300;
+
 		// Habilita o depth-buffering
 		gl.glEnable(GL2.GL_DEPTH_TEST);
 		gl.glDepthFunc(GL2.GL_LESS);
 
 		texSun = carregaImagem("sun.jpg");
 		textMerc = carregaImagem("mercury.jpg");
+		texVen = carregaImagem("venus.jpg");
+		texEarth = carregaImagem("earth.jpg");
+		texMars = carregaImagem("mars.jpg");
+		texJup = carregaImagem("jupyter.jpg");
+		texSat = carregaImagem("saturn.jpg");
+		texUran = carregaImagem("uranus.jpg");
+		texNep = carregaImagem("neptune.jpg");
 	}
 
 	@Override
@@ -228,7 +256,8 @@ public class SolarSystem implements GLEventListener, KeyListener, MouseListener,
 
 		// Especifica a projeção perspectiva(angulo,aspecto,zMin,zMax)
 		// aspecto = width/hight
-		glu.gluPerspective(9, 1.7, 10, 8000);
+		upY = -0.15f;
+		glu.gluPerspective(9, 1.7, 1, 9000);
 		glu.gluLookAt(0, 0, 3, upX, upY, 0, 0, 1, 0);
 		Observador();
 
@@ -238,7 +267,7 @@ public class SolarSystem implements GLEventListener, KeyListener, MouseListener,
 
 		gl.glTranslatef(-obsX, -obsY, -obsZ);
 		gl.glRotatef(rotY, 0, 1, 0);
-		gl.glRotatef(55, 1, 0, 0);
+		gl.glRotatef(45, 1, 0, 0);
 	}
 
 	public Texture carregaImagem(String fileName) {
@@ -288,63 +317,75 @@ public class SolarSystem implements GLEventListener, KeyListener, MouseListener,
 
 	}
 
+	public void lightning() {
+		// parâmetros da luz
+
+		// luz1
+		gl.glLightfv(GL2.GL_LIGHT0, GL2.GL_AMBIENT, ambient, 0);
+		gl.glLightfv(GL2.GL_LIGHT0, GL2.GL_DIFFUSE, diffuse, 0);
+		gl.glLightfv(GL2.GL_LIGHT0, GL2.GL_POSITION, position, 0);
+
+		float[] model_ambient = { 0.4f, 0.4f, 0.4f, 1.0f };
+		int model_two_side = 1;
+
+		gl.glLightModelfv(GL2.GL_LIGHT_MODEL_AMBIENT, model_ambient, 0);
+		gl.glLightModeli(GL2.GL_LIGHT_MODEL_TWO_SIDE, 1);
+		// Ativa o uso da luz ambiente
+		// gl.glLightModelfv(GL2.GL_LIGHT_MODEL_AMBIENT, model_ambient, 0);
+		// Habilita o uso de iluminação
+		gl.glEnable(GL2.GL_LIGHTING);
+		// Habilita a luz de número 0
+		gl.glEnable(GL2.GL_LIGHT0);
+
+		// reflexão da luz nos planetas
+
+		float[] no_mat = { 0.0f, 0.0f, 0.0f, 1.0f };
+		float[] mat_ambient = { 0.7f, 0.7f, 0.7f, 1.0f };
+		float[] mat_ambient_color = { 0.8f, 0.8f, 0.2f, 1.0f };
+		float[] mat_diffuse = { 0.1f, 0.5f, 0.8f, 1.0f };
+		float[] mat_specular = { 1.0f, 1.0f, 1.0f, 1.0f };
+		float no_shininess = 0.0f;
+		float low_shininess = 5.0f;
+		float high_shininess = 100.0f;
+		float[] mat_emission = { 0.3f, 0.2f, 0.2f, 0.0f };
+
+		gl.glMaterialfv(GL.GL_FRONT, GL2.GL_AMBIENT, mat_ambient, 0);
+		gl.glMaterialfv(GL.GL_FRONT, GL2.GL_DIFFUSE, mat_diffuse, 0);
+		gl.glMaterialfv(GL.GL_FRONT, GL2.GL_SPECULAR, no_mat, 0);
+		gl.glMaterialf(GL.GL_FRONT, GL2.GL_SHININESS, no_shininess);
+		gl.glMaterialfv(GL.GL_FRONT, GL2.GL_EMISSION, no_mat, 0);
+
+	}
+
 	public void sun() {
 
-		// parâmetros da luz
-		float l_Ambient[] = { 0.2f, 0.2f, 0.2f, 1.0f };
-		float l_diffuse[] = { 0.7f, 0.7f, 0.7f, 1.0f };
-		float l_specular[] = { 1f, 1f, 1f, 1.0f };
-		float positionLight[] = { -1f, 0f, 0f, 0f };
+		float[] no_mat = { 0.0f, 0.0f, 0.0f, 1.0f };
+		float[] mat_ambient_color = { 0.8f, 0.8f, 0.2f, 1.0f };
+		float[] mat_diffuse = { 0.1f, 0.5f, 0.8f, 1.0f };
+		float[] mat_specular = { 1.0f, 1.0f, 1.0f, 1.0f };
+		float low_shininess = 5.0f;
 
-		// Ativa o uso da luz ambiente
-		gl.glLightModelfv(GL2.GL_LIGHT_MODEL_AMBIENT, l_Ambient, 0);
-
-		// Capacidade de brilho do sol
-		float specularity[] = { 1.0f, 1.0f, 1.0f, 1.0f };
-		int sunshine = 80;
-		float sunEmission[] = { 1f, 1f, 0f, 1.0f };
-		float dir[] = { -1, 0, 0 };
-		gl.glMaterialfv(GL.GL_FRONT, GL2.GL_AMBIENT, l_Ambient, 0);
-		gl.glMaterialfv(GL.GL_FRONT, GL2.GL_DIFFUSE, l_diffuse, 0);
-		gl.glMaterialfv(GL.GL_FRONT, GL2.GL_SPECULAR, specularity, 0);
-		gl.glMateriali(GL.GL_FRONT, GL2.GL_SHININESS, sunshine);
-		gl.glMaterialfv(GL.GL_FRONT, GL2.GL_EMISSION, sunEmission, 0);
-
-		// Define os parâmetros da luz do sol -------------------
-		gl.glLightfv(GL2.GL_LIGHT0, GL2.GL_AMBIENT, l_Ambient, 0);
-		gl.glLightfv(GL2.GL_LIGHT0, GL2.GL_DIFFUSE, l_diffuse, 0);
-		gl.glLightfv(GL2.GL_LIGHT0, GL2.GL_SPECULAR, l_specular, 0);
-		gl.glLightfv(GL2.GL_LIGHT0, GL2.GL_POSITION, positionLight, 0);
-		//gl.glLightf(GL2.GL_LIGHT0, GL2.GL_SPOT_EXPONENT, 28f);
-				
-
-		// carrega textura
-		try {
-			InputStream stream = getClass().getResourceAsStream("sun.jpg");
-			TextureData data = TextureIO.newTextureData(GLProfile.getDefault(), stream, false, "jpg");
-			tex = TextureIO.newTexture(data);
-		} catch (IOException exc) {
-			exc.printStackTrace();
-			System.exit(1);
-		}
-
-		tex.enable(gl);
-		tex.bind(gl);
+		texSun.enable(gl);
+		texSun.bind(gl);
 
 		gl.glPushMatrix();
-		// gl.glColor3f(1f, 1f, 1f);
+
+		gl.glMaterialfv(GL.GL_FRONT, GL2.GL_AMBIENT, mat_ambient_color, 0);
+		gl.glMaterialfv(GL.GL_FRONT, GL2.GL_DIFFUSE, mat_diffuse, 0);
+		gl.glMaterialfv(GL.GL_FRONT, GL2.GL_SPECULAR, mat_specular, 0);
+		gl.glMaterialf(GL.GL_FRONT, GL2.GL_SHININESS, low_shininess);
+		gl.glMaterialfv(GL.GL_FRONT, GL2.GL_EMISSION, no_mat, 0);
 
 		GLUquadric sun = glu.gluNewQuadric();
 		glu.gluQuadricTexture(sun, true);
 		glu.gluQuadricDrawStyle(sun, GLU.GLU_FILL);
 		glu.gluQuadricNormals(sun, GLU.GLU_FLAT);
 		glu.gluQuadricOrientation(sun, GLU.GLU_OUTSIDE);
-		glu.gluSphere(sun, 70f, 100, 100);
+		glu.gluSphere(sun, 3f, 100, 100);
 		glu.gluDeleteQuadric(sun);
 		gl.glPopMatrix();
 
-		tex.disable(gl);
-		tex.destroy(gl);
+		texSun.disable(gl);
 
 	}
 
@@ -352,61 +393,320 @@ public class SolarSystem implements GLEventListener, KeyListener, MouseListener,
 
 		// orbita
 		gl.glPushMatrix();
-		gl.glColor3f(0.8f, 0.8f, 0.8f);
-		//gl.glDisable(GL2.GL_LIGHTING);
+		gl.glColor3f(0.25f, 0.25f, 0.25f);
+		gl.glDisable(GL2.GL_LIGHTING);
 		gl.glBegin(GL.GL_LINE_STRIP);
 
 		for (int i = 0; i < 361; i++) {
-			gl.glVertex3f(130f * (float) Math.sin(i * Math.PI / 180), 0, 130f * (float) Math.cos(i * Math.PI / 180));
+			gl.glVertex3f(5f * (float) Math.sin(i * Math.PI / 180), 0, 5f * (float) Math.cos(i * Math.PI / 180));
 		}
 		gl.glEnd();
-		//gl.glEnable(GL2.GL_LIGHTING);
+		gl.glEnable(GL2.GL_LIGHTING);
 		gl.glPopMatrix();
 
-		// carrega textura
-		try {
-			InputStream stream = getClass().getResourceAsStream("mercury.jpg");
-			TextureData data = TextureIO.newTextureData(GLProfile.getDefault(), stream, false, "jpg");
-			tex = TextureIO.newTexture(data);
-		} catch (IOException exc) {
-			exc.printStackTrace();
-			System.exit(1);
-		}
+		textMerc.enable(gl);
+		textMerc.bind(gl);
 
-		tex.enable(gl);
-		tex.bind(gl);
-		
 		float l_diffuse[] = { 0.7f, 0.7f, 0.7f, 1.0f };
-		
+		// create planet
 		gl.glPushMatrix();
-		
-		gl.glMaterialfv(GL.GL_FRONT, GL2.GL_AMBIENT_AND_DIFFUSE, l_diffuse, 0);
-		gl.glTranslatef(130.0f, 0.0f, 0.0f);
+		gl.glRotatef(angles[0], 0, 1, 0);
+		gl.glTranslatef(5f, 0.0f, 0.0f);
 		gl.glColor3f(0.8f, 0.8f, 0.8f);
 		GLUquadric merc = glu.gluNewQuadric();
 		glu.gluQuadricTexture(merc, true);
 		glu.gluQuadricDrawStyle(merc, GLU.GLU_FILL);
-		glu.gluQuadricNormals(merc, GLU.GLU_FLAT);
+		glu.gluQuadricNormals(merc, GLU.GLU_SMOOTH);
 		glu.gluQuadricOrientation(merc, GLU.GLU_OUTSIDE);
-		glu.gluSphere(merc, 24.5f, 100, 100);
-		glu.gluDeleteQuadric(merc);
-		glut.glutSolidSphere(24.5f, 100, 100);
-		
+		glu.gluSphere(merc, 0.8f, 100, 100);
+		//glu.gluDeleteQuadric(merc);
+
 		gl.glPopMatrix();
 
-		tex.disable(gl);
-		tex.destroy(gl);
-		
-		int test = 1;
-		gl.glPushMatrix();
-		gl.glRotatef(test, 0, 1, 0);
-		test +=1;
-		gl.glPopMatrix();
-		
-		// Flush the pipeline, and swap the buffers
-		
-		
+		textMerc.disable(gl);
 
 	}
 
-}
+	public void angle_update() {
+		for (int ii = 0; ii < 8; ii++) {
+			angles[ii] = angles[ii] + orbiting_speed[ii];
+			// moon_angle[ii]= moon_angle[ii] + moon_speed[ii];
+		}
+
+	}
+
+	public void venus() {
+
+		// orbita
+		gl.glPushMatrix();
+		gl.glColor3f(0.25f, 0.25f, 0.25f);
+		gl.glDisable(GL2.GL_LIGHTING);
+		gl.glBegin(GL.GL_LINE_STRIP);
+
+		for (int i = 0; i < 361; i++) {
+			gl.glVertex3f(8f * (float) Math.sin(i * Math.PI / 180), 0, 8f * (float) Math.cos(i * Math.PI / 180));
+		}
+		gl.glEnd();
+		gl.glEnable(GL2.GL_LIGHTING);
+		gl.glPopMatrix();
+
+		texVen.enable(gl);
+		texVen.bind(gl);
+
+		// create planet
+		gl.glPushMatrix();
+		gl.glRotatef(angles[1], 0, 1, 0);
+		gl.glTranslatef(8.0f, 0.0f, 0.0f);
+		gl.glColor3f(0.8f, 0.8f, 0.8f);
+
+		GLUquadric ven = glu.gluNewQuadric();
+		glu.gluQuadricTexture(ven, true);
+		glu.gluQuadricDrawStyle(ven, GLU.GLU_FILL);
+		glu.gluQuadricNormals(ven, GLU.GLU_SMOOTH);
+		glu.gluQuadricOrientation(ven, GLU.GLU_OUTSIDE);
+		glu.gluSphere(ven, 1.4f, 100, 100);
+		glu.gluDeleteQuadric(ven);
+		gl.glPopMatrix();
+
+		texVen.disable(gl);
+
+	}
+
+	public void earth() {
+		// orbita
+				gl.glPushMatrix();
+				gl.glColor3f(0.25f, 0.25f, 0.25f);
+				gl.glDisable(GL2.GL_LIGHTING);
+				gl.glBegin(GL.GL_LINE_STRIP);
+
+				for (int i = 0; i < 361; i++) {
+					gl.glVertex3f(12f * (float) Math.sin(i * Math.PI / 180), 0, 12f * (float) Math.cos(i * Math.PI / 180));
+				}
+				gl.glEnd();
+				gl.glEnable(GL2.GL_LIGHTING);
+				gl.glPopMatrix();
+
+				texEarth.enable(gl);
+				texEarth.bind(gl);
+
+				// create planet
+				gl.glPushMatrix();
+				gl.glRotatef(angles[2], 0, 1, 0);
+				gl.glTranslatef(12.0f, 0.0f, 0.0f);
+				gl.glColor3f(0.8f, 0.8f, 0.8f);
+
+				GLUquadric earth = glu.gluNewQuadric();
+				glu.gluQuadricTexture(earth, true);
+				glu.gluQuadricDrawStyle(earth, GLU.GLU_FILL);
+				glu.gluQuadricNormals(earth, GLU.GLU_SMOOTH);
+				glu.gluQuadricOrientation(earth, GLU.GLU_OUTSIDE);
+				glu.gluSphere(earth, 1.6f, 100, 100);
+				//glu.gluDeleteQuadric(earth);
+				gl.glPopMatrix();
+
+				texEarth.disable(gl);
+	}
+	
+	public void mars() {
+		// orbita
+				gl.glPushMatrix();
+				gl.glColor3f(0.25f, 0.25f, 0.25f);
+				gl.glDisable(GL2.GL_LIGHTING);
+				gl.glBegin(GL.GL_LINE_STRIP);
+
+				for (int i = 0; i < 361; i++) {
+					gl.glVertex3f(16f * (float) Math.sin(i * Math.PI / 180), 0, 16 * (float) Math.cos(i * Math.PI / 180));
+				}
+				gl.glEnd();
+				gl.glEnable(GL2.GL_LIGHTING);
+				gl.glPopMatrix();
+
+				texMars.enable(gl);
+				texMars.bind(gl);
+
+				// create planet
+				gl.glPushMatrix();
+				gl.glRotatef(angles[3], 0, 1, 0);
+				gl.glTranslatef(16.0f, 0.0f, 0.0f);
+				gl.glColor3f(0.8f, 0.8f, 0.8f);
+
+				GLUquadric mars = glu.gluNewQuadric();
+				glu.gluQuadricTexture(mars, true);
+				glu.gluQuadricDrawStyle(mars, GLU.GLU_FILL);
+				glu.gluQuadricNormals(mars, GLU.GLU_SMOOTH);
+				glu.gluQuadricOrientation(mars, GLU.GLU_OUTSIDE);
+				glu.gluSphere(mars, 1.1f, 100, 100);
+				//glu.gluDeleteQuadric(earth);
+				gl.glPopMatrix();
+
+				texMars.disable(gl);
+	}
+	
+	public void jupyter() {
+		
+		// orbita
+		gl.glPushMatrix();
+		gl.glColor3f(0.25f, 0.25f, 0.25f);
+		gl.glDisable(GL2.GL_LIGHTING);
+		gl.glBegin(GL.GL_LINE_STRIP);
+
+		for (int i = 0; i < 361; i++) {
+			gl.glVertex3f(20f * (float) Math.sin(i * Math.PI / 180), 0, 20f * (float) Math.cos(i * Math.PI / 180));
+		}
+		gl.glEnd();
+		gl.glEnable(GL2.GL_LIGHTING);
+		gl.glPopMatrix();
+
+		texJup.enable(gl);
+		texJup.bind(gl);
+
+		// create planet
+		gl.glPushMatrix();
+		gl.glRotatef(angles[4], 0, 1, 0);
+		gl.glTranslatef(20.0f, 0.0f, 0.0f);
+		gl.glColor3f(0.8f, 0.8f, 0.8f);
+
+		GLUquadric jupyter = glu.gluNewQuadric();
+		glu.gluQuadricTexture(jupyter, true);
+		glu.gluQuadricDrawStyle(jupyter, GLU.GLU_FILL);
+		glu.gluQuadricNormals(jupyter, GLU.GLU_SMOOTH);
+		glu.gluQuadricOrientation(jupyter, GLU.GLU_OUTSIDE);
+		glu.gluSphere(jupyter, 2f, 100, 100);
+		//glu.gluDeleteQuadric(earth);
+		gl.glPopMatrix();
+
+		texJup.disable(gl);
+	}
+	
+	public void saturn() {
+		
+		// orbita
+				gl.glPushMatrix();
+				gl.glColor3f(0.25f, 0.25f, 0.25f);
+				gl.glDisable(GL2.GL_LIGHTING);
+				gl.glBegin(GL.GL_LINE_STRIP);
+
+				for (int i = 0; i < 361; i++) {
+					gl.glVertex3f(26f * (float) Math.sin(i * Math.PI / 180), 0, 26f * (float) Math.cos(i * Math.PI / 180));
+				}
+				gl.glEnd();
+				gl.glEnable(GL2.GL_LIGHTING);
+				gl.glPopMatrix();
+
+				texSat.enable(gl);
+				texSat.bind(gl);
+
+				// create planet
+				gl.glPushMatrix();
+				gl.glRotatef(angles[5], 0, 1, 0);
+				gl.glTranslatef(26.0f, 0.0f, 0.0f);
+				gl.glColor3f(0.8f, 0.8f, 0.8f);
+
+				GLUquadric sat = glu.gluNewQuadric();
+				glu.gluQuadricTexture(sat, true);
+				glu.gluQuadricDrawStyle(sat, GLU.GLU_FILL);
+				glu.gluQuadricNormals(sat, GLU.GLU_SMOOTH);
+				glu.gluQuadricOrientation(sat, GLU.GLU_OUTSIDE);
+				glu.gluSphere(sat, 1.9f, 100, 100);
+				
+				gl.glPushMatrix();
+				gl.glColor3f(1f, 0.76f, 0.3f);
+				gl.glRotatef(50, 1, 0, 0);
+				glut.glutSolidTorus(0.3f,3f, 100, 100);
+				
+				gl.glPopMatrix();
+				
+				gl.glPopMatrix();
+
+				texSat.disable(gl);
+	}
+	
+	public void uranus() {
+		
+		// orbita
+		gl.glPushMatrix();
+		gl.glColor3f(0.25f, 0.25f, 0.25f);
+		gl.glDisable(GL2.GL_LIGHTING);
+		gl.glBegin(GL.GL_LINE_STRIP);
+
+		for (int i = 0; i < 361; i++) {
+			gl.glVertex3f(32f * (float) Math.sin(i * Math.PI / 180), 0, 32f * (float) Math.cos(i * Math.PI / 180));
+		}
+		gl.glEnd();
+		gl.glEnable(GL2.GL_LIGHTING);
+		gl.glPopMatrix();
+
+		texUran.enable(gl);
+		texUran.bind(gl);
+
+		// create planet
+		gl.glPushMatrix();
+		gl.glRotatef(angles[6], 0, 1, 0);
+		gl.glTranslatef(32.0f, 0.0f, 0.0f);
+		gl.glColor3f(0.8f, 0.8f, 0.8f);
+
+		GLUquadric uran = glu.gluNewQuadric();
+		glu.gluQuadricTexture(uran, true);
+		glu.gluQuadricDrawStyle(uran, GLU.GLU_FILL);
+		glu.gluQuadricNormals(uran, GLU.GLU_SMOOTH);
+		glu.gluQuadricOrientation(uran, GLU.GLU_OUTSIDE);
+		glu.gluSphere(uran, 1.8f, 100, 100);
+			
+		gl.glPopMatrix();
+
+		texUran.disable(gl);
+	}
+	
+	public void neptune () {
+		
+		// orbita
+				gl.glPushMatrix();
+				gl.glColor3f(0.25f, 0.25f, 0.25f);
+				gl.glDisable(GL2.GL_LIGHTING);
+				gl.glBegin(GL.GL_LINE_STRIP);
+
+				for (int i = 0; i < 361; i++) {
+					gl.glVertex3f(36f * (float) Math.sin(i * Math.PI / 180), 0, 36f * (float) Math.cos(i * Math.PI / 180));
+				}
+				gl.glEnd();
+				gl.glEnable(GL2.GL_LIGHTING);
+				gl.glPopMatrix();
+
+				texNep.enable(gl);
+				texNep.bind(gl);
+
+				// create planet
+				gl.glPushMatrix();
+				gl.glRotatef(angles[7], 0, 1, 0);
+				gl.glTranslatef(36.0f, 0.0f, 0.0f);
+				gl.glColor3f(0.8f, 0.8f, 0.8f);
+
+				GLUquadric nep = glu.gluNewQuadric();
+				glu.gluQuadricTexture(nep, true);
+				glu.gluQuadricDrawStyle(nep, GLU.GLU_FILL);
+				glu.gluQuadricNormals(nep, GLU.GLU_SMOOTH);
+				glu.gluQuadricOrientation(nep, GLU.GLU_OUTSIDE);
+				glu.gluSphere(nep, 1.7f, 100, 100);
+					
+				gl.glPopMatrix();
+
+				texNep.disable(gl);
+
+	}
+	
+	public void stars(int NumberOfPoints) {
+		
+		float x[] = new float [NumberOfPoints];
+		float y[] = new float [NumberOfPoints];
+		
+		gl.glColor3f(1f, 1f, 1f);
+		gl.glBegin( GL.GL_POINTS );
+
+		   gl.glVertex2f( 1f,1f );
+
+		
+		gl.glEnd();
+     }
+	}
+
+
